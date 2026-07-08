@@ -1,0 +1,4 @@
+.git
+*.md
+tools/*.md
+conf/ssl/*.key

@@ -1,0 +1,31 @@
+# =============================================================================
+# Inception — Git ignore
+# =============================================================================
+# CRITICAL: Committing passwords = automatic project failure.
+# =============================================================================
+
+# Environment with real values (use .env.example as template)
+srcs/.env
+
+# All secrets — create locally on VM only
+secrets/*.txt
+secrets/*
+!secrets/.gitkeep
+!secrets/README.md
+
+# TLS private keys (generate on VM or at build time)
+**/ssl/*.key
+**/ssl/*.pem
+
+# WordPress / PHP
+**/wp-config.php
+
+# OS / editor
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/
+
+# Docker local overrides
+docker-compose.override.yml
