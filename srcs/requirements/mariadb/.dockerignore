@@ -1,0 +1,4 @@
+# Exclude secrets and build artifacts from image context
+.git
+*.md
+tools/*.md
