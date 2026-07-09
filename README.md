@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by `<your_login>`.*
+*This project has been created as part of the 42 curriculum by `kebris-c`.*
 
 # Inception
 
@@ -15,8 +15,8 @@ This project sets up a small containerized infrastructure using Docker Compose o
 ### Prerequisites
 
 - Linux VM with Docker Engine and Docker Compose plugin
-- Directories: `/home/<login>/data/mariadb` and `/home/<login>/data/wordpress`
-- `/etc/hosts` entry: `<VM_IP> <login>.42.fr`
+- Directories: `/home/kebris-c/data/mariadb` and `/home/kebris-c/data/wordpress`
+- `/etc/hosts` entry: `<VM_IP> kebris-c.42.fr`
 - Local `secrets/*.txt` files (see `secrets/README.md`)
 - Copy `srcs/.env.example` → `srcs/.env` and edit
 
@@ -29,7 +29,7 @@ make down   # stop stack
 make logs   # view logs
 ```
 
-Access: `https://<login>.42.fr`
+Access: `https://kebris-c.42.fr`
 
 ## Project description
 
