@@ -1,23 +1,21 @@
-# =============================================================================
-# NGINX — Dockerfile
-# =============================================================================
-# PURPOSE: HTTPS reverse proxy — ONLY entry point to infrastructure (port 443).
-#
-# STEPS TO COMPLETE:
-#   1. Base: Debian or Alpine + nginx package (pinned version)
-#   2. COPY conf/nginx.conf, conf/default.conf or conf/ssl/
-#   3. Generate or COPY self-signed TLS cert for DOMAIN_NAME
-#   4. CMD ["nginx", "-g", "daemon off;"]
-#
-# FORBIDDEN: Exposing port 80 if subject says 443 only — read eval sheet.
-# =============================================================================
+FROM debian:bookworm-slim
 
-# TODO: FROM debian:bookworm-slim or alpine:3.19
-# RUN apt-get install -y nginx openssl
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash \
+    nginx \
+    openssl \
+    gettext-base \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -f /etc/nginx/sites-enabled/default
 
-# COPY conf/nginx.conf /etc/nginx/nginx.conf
-# COPY conf/default.conf /etc/nginx/conf.d/default.conf
-# COPY conf/ssl/ /etc/nginx/ssl/
+RUN mkdir -p /etc/nginx/ssl /etc/nginx/templates
 
-# EXPOSE 443
-# CMD ["nginx", "-g", "daemon off;"]
+COPY conf/nginx.conf /etc/nginx/nginx.conf
+COPY conf/default.conf.template /etc/nginx/templates/default.conf.template
+COPY tools/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+EXPOSE 443
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["nginx", "-g", "daemon off;"]

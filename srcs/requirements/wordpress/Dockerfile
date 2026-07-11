@@ -1,30 +1,32 @@
-# =============================================================================
-# WordPress + PHP-FPM — Dockerfile
-# =============================================================================
-# PURPOSE: WordPress files + php-fpm only. NO nginx in this container.
-#
-# STEPS TO COMPLETE:
-#   1. Base: Debian or Alpine with php-fpm + required extensions
-#      Extensions: mysqli, curl, gd, mbstring, xml, zip (typical WP needs)
-#   2. Download WordPress (specific version tarball) OR install wp-cli
-#   3. COPY conf/php-fpm pool config, tools/entrypoint.sh
-#   4. WORKDIR /var/www/html
-#   5. CMD ["php-fpm", "-F"]  (foreground)
-# =============================================================================
+FROM debian:bookworm-slim
 
-# TODO: FROM debian:bookworm-slim or alpine:3.19
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash \
+    ca-certificates \
+    curl \
+    mariadb-client \
+    php8.2-fpm \
+    php8.2-cli \
+    php8.2-mysql \
+    php8.2-curl \
+    php8.2-gd \
+    php8.2-mbstring \
+    php8.2-xml \
+    php8.2-zip \
+    php8.2-intl \
+    && rm -rf /var/lib/apt/lists/*
 
-# TODO: Install php-fpm and extensions
-# RUN apt-get install -y php-fpm php-mysqli ...
+RUN curl -fsSL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
+    -o /usr/local/bin/wp \
+    && chmod +x /usr/local/bin/wp
 
-# TODO: Install wp-cli (optional but recommended)
-# RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+WORKDIR /var/www/html
 
-# TODO: Download WordPress to /var/www/html (or let entrypoint copy on first run)
+COPY conf/www.conf /etc/php/8.2/fpm/pool.d/www.conf
+COPY tools/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# COPY conf/www.conf /etc/php/8.2/fpm/pool.d/www.conf
-# COPY tools/entrypoint.sh /usr/local/bin/
-# RUN chmod +x /usr/local/bin/entrypoint.sh
+EXPOSE 9000
 
-# ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-# CMD ["php-fpm", "-F"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["php-fpm8.2", "-F"]

@@ -9,18 +9,23 @@ Audience: **developer** setting up the project from scratch on a new VM.
 - 42 Linux VM (project must run on VM)
 - Docker Engine + Docker Compose v2 plugin
 - `make`, `git`, `openssl`
-- Sudo for Docker (user in `docker` group)
-- Ports: **443** available on VM
+- User in the `docker` group
+- Port **443** available on the VM
 
 ### Host directories
 
 ```bash
-export LOGIN=your_login
-mkdir -p /home/$LOGIN/data/mariadb
-mkdir -p /home/$LOGIN/data/wordpress
+make setup
 ```
 
-Update `device:` paths in `srcs/docker-compose.yml` volumes section.
+This creates:
+
+- `/home/kebris-c/data/mariadb`
+- `/home/kebris-c/data/wordpress`
+- `srcs/.env` from template
+- `secrets/*.txt` with random passwords
+
+Volume paths are configured in `srcs/docker-compose.yml` under `volumes.mariadb_data` and `volumes.wordpress_data`.
 
 ---
 
@@ -28,17 +33,19 @@ Update `device:` paths in `srcs/docker-compose.yml` volumes section.
 
 ```
 Makefile
-secrets/          → local only, password files
+README.md
+USER_DOC.md
+DEV_DOC.md
+secrets/              → local password files (gitignored)
 srcs/
-  .env            → from .env.example
+  .env                → from .env.example (gitignored)
   docker-compose.yml
   requirements/
     mariadb/
     wordpress/
     nginx/
+    bonus/            → optional, not wired in mandatory stack
 ```
-
-See [INCEPTION_GUIDE.md](INCEPTION_GUIDE.md) for architecture and implementation order.
 
 ---
 
@@ -48,35 +55,24 @@ See [INCEPTION_GUIDE.md](INCEPTION_GUIDE.md) for architecture and implementation
 
 ```bash
 git clone <your-repo>
-cd inception
+cd Inception
 ```
 
-### 2. Environment file
+### 2. First-time setup
 
 ```bash
-cp srcs/.env.example srcs/.env
-# Edit: DOMAIN_NAME, MYSQL_USER, WORDPRESS_ADMIN_USER, etc.
+make setup
 ```
 
-### 3. Secrets
+Edit `srcs/.env` if you need to change domain, emails, or usernames.
+
+### 3. Domain resolution
 
 ```bash
-openssl rand -base64 32 > secrets/db_password.txt
-openssl rand -base64 32 > secrets/db_root_password.txt
-chmod 600 secrets/*.txt
+echo "<VM_IP>  kebris-c.42.fr" | sudo tee -a /etc/hosts
 ```
 
-### 4. Domain
-
-```bash
-echo "<VM_IP>  your_login.42.fr" | sudo tee -a /etc/hosts
-```
-
-### 5. TLS (if generated on host)
-
-```bash
-# See srcs/requirements/nginx/conf/ssl/README.md
-```
+Replace `<VM_IP>` with the output of `hostname -I`.
 
 ---
 
@@ -86,11 +82,11 @@ echo "<VM_IP>  your_login.42.fr" | sudo tee -a /etc/hosts
 make build    # Build all images from Dockerfiles
 make up       # Start stack detached
 make logs     # Debug
-make down     # Stop
-make re       # Full rebuild (destructive if clean removes volumes)
+make down     # Stop (keeps volumes)
+make re       # Full rebuild — removes volumes and images
 ```
 
-Compose file path: `srcs/docker-compose.yml` (invoked by Makefile).
+Compose file: `srcs/docker-compose.yml` (invoked by Makefile).
 
 ---
 
@@ -98,40 +94,41 @@ Compose file path: `srcs/docker-compose.yml` (invoked by Makefile).
 
 | Task | Command |
 |------|---------|
-| List containers | `docker compose -f srcs/docker-compose.yml ps` |
+| List containers | `make ps` |
 | Logs one service | `docker compose -f srcs/docker-compose.yml logs -f nginx` |
-| Shell in container | `docker exec -it wordpress sh` |
-| Inspect volume | `docker volume inspect <volume_name>` |
+| Shell in container | `docker exec -it wordpress bash` |
+| Inspect volume | `docker volume inspect inception_wordpress_data` |
 
 ### Data persistence
 
 | Data | Host path |
 |------|-----------|
-| MariaDB files | `/home/<login>/data/mariadb` |
-| WordPress files | `/home/<login>/data/wordpress` |
+| MariaDB files | `/home/kebris-c/data/mariadb` |
+| WordPress files | `/home/kebris-c/data/wordpress` |
 
-Data survives `make down`. Removing volumes (`docker compose down -v` or `make clean`) **deletes** data.
+Data survives `make down`. `make clean` or `make re` removes volumes and **deletes** data.
 
 ---
 
 ## Implementation checklist
 
-- [ ] MariaDB Dockerfile + entrypoint initializes DB and user
-- [ ] WordPress Dockerfile + entrypoint installs WP and 2 users
-- [ ] NGINX Dockerfile + TLS 1.2/1.3 + fastcgi to wordpress:9000
-- [ ] Compose: network, volumes, secrets, restart, depends_on + healthcheck
-- [ ] Makefile targets work
-- [ ] No passwords in git or Dockerfiles
-- [ ] Admin username does not contain `admin` / `administrator`
+- [x] MariaDB Dockerfile + entrypoint initializes DB and user
+- [x] WordPress Dockerfile + entrypoint installs WP and 2 users
+- [x] NGINX Dockerfile + TLS 1.2/1.3 + FastCGI to wordpress:9000
+- [x] Compose: network, volumes, secrets, restart, depends_on + healthcheck
+- [x] Makefile targets work
+- [x] No passwords in git or Dockerfiles
+- [x] Admin username does not contain `admin` / `administrator`
 
 ---
 
 ## Debugging tips
 
-1. **Start mariadb alone** — comment out other services, verify healthcheck.
-2. **wordpress logs** — DB connection errors → secrets/env/host.
-3. **nginx 502** — php-fpm listen address, `fastcgi_pass wordpress:9000`.
-4. **Permission errors** — `chown www-data` on volume in entrypoint.
+1. **MariaDB alone** — temporarily comment out wordpress/nginx in compose, run `make up`, check healthcheck.
+2. **WordPress logs** — DB connection errors → verify secrets and `.env` host/user/database names.
+3. **NGINX 502** — php-fpm must listen on `9000`; check `fastcgi_pass wordpress:9000`.
+4. **Permission errors** — entrypoint runs `chown www-data:www-data` on `/var/www/html`.
+5. **TLS test** — `openssl s_client -connect kebris-c.42.fr:443 -tls1_1` should fail; `-tls1_2` should succeed.
 
 ---
 
@@ -140,13 +137,13 @@ Data survives `make down`. Removing volumes (`docker compose down -v` or `make c
 - Custom Dockerfiles only (no prebuilt WP/nginx/mariadb images)
 - Image name == service name
 - No `network: host`, no `links:`
-- No `tail -f` / `sleep infinity` as PID 1
-- Named volumes under `/home/<login>/data`
+- No `tail -f` / `bash` / `sleep infinity` / `while true` as PID 1
+- Named volumes under `/home/kebris-c/data`
 - Port 443 only for mandatory entry point
-- `.env` mandatory; secrets for passwords
+- `.env` mandatory; Docker secrets strongly recommended for passwords
 
 ---
 
-## AI usage (document your own)
+## AI usage (developer note)
 
-<!-- TODO: Record tools used, prompts, and verification steps for README Resources section -->
+AI was used for guidelines, templates, and conceptual explanations during early scaffolding. The final implementation should be rebuilt, tested, and understood manually before defense. Document your own verification steps here as you work through the project.

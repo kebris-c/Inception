@@ -1,17 +1,19 @@
-#!/bin/sh
-# =============================================================================
-# NGINX — Optional entrypoint (if you need envsubst for DOMAIN_NAME)
-# =============================================================================
-# PURPOSE: Replace placeholders in config at runtime using env vars.
-#
-# Example: envsubst '${DOMAIN_NAME}' < /etc/nginx/templates/default.conf.template
-#
-# If configs are static, you may skip this and use CMD only.
-# =============================================================================
+#!/bin/bash
+set -e
 
-# TODO: Optional — template substitution then exec nginx
+if [ -z "${DOMAIN_NAME}" ]; then
+	echo "DOMAIN_NAME is not set"
+	exit 1
+fi
 
-# exec nginx -g "daemon off;"
+if [ ! -f /etc/nginx/ssl/nginx.crt ] || [ ! -f /etc/nginx/ssl/nginx.key ]; then
+	openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+		-keyout /etc/nginx/ssl/nginx.key \
+		-out /etc/nginx/ssl/nginx.crt \
+		-subj "/CN=${DOMAIN_NAME}"
+fi
 
-echo "Optional: implement if using config templates"
-exit 0
+envsubst '${DOMAIN_NAME}' < /etc/nginx/templates/default.conf.template \
+	> /etc/nginx/conf.d/default.conf
+
+exec nginx -g "daemon off;"

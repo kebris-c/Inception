@@ -8,11 +8,11 @@ Audience: **end user or system administrator** who needs to run the website stac
 
 | Service | What it does for you |
 |---------|----------------------|
-| **Website** | WordPress site at `https://<login>.42.fr` |
-| **Admin panel** | WordPress dashboard at `https://<login>.42.fr/wp-admin` |
-| **Database** | MariaDB (internal — not directly exposed) |
+| **Website** | WordPress site at `https://kebris-c.42.fr` |
+| **Admin panel** | WordPress dashboard at `https://kebris-c.42.fr/wp-admin` |
+| **Database** | MariaDB (internal — not exposed to the host) |
 
-<!-- TODO: Add bonus services table if implemented -->
+The only public entry point is **HTTPS on port 443** (NGINX).
 
 ---
 
@@ -27,34 +27,34 @@ make ps      # Check status
 make logs    # View logs if something fails
 ```
 
-<!-- TODO: Document any reboot behavior (restart: unless-stopped) -->
+Containers use `restart: unless-stopped`, so they come back after a VM reboot unless you ran `make down`.
 
 ---
 
 ## Accessing the website
 
-1. Ensure DNS or `/etc/hosts` maps `<login>.42.fr` to the VM IP.
-2. Open browser: **https://<login>.42.fr**
-3. Accept self-signed certificate warning if using dev TLS.
+1. Ensure `/etc/hosts` on your machine maps `kebris-c.42.fr` to the VM IP address.
+2. Open a browser: **https://kebris-c.42.fr**
+3. Accept the self-signed certificate warning (expected in development).
 
 ### Administration panel
 
-- URL: **https://<login>.42.fr/wp-admin**
-- Log in with the administrator account created at first install.
+- URL: **https://kebris-c.42.fr/wp-admin**
+- Username: value of `WORDPRESS_ADMIN_USER` in `srcs/.env` (default: `siteowner`)
+- Password: stored in `secrets/wp_admin_password.txt` on the VM
 
 ---
 
 ## Credentials
 
-<!-- TODO: Document where credentials live on the VM — NOT in git -->
-
 | Credential | Location |
 |------------|----------|
-| DB user password | `secrets/db_password.txt` on VM |
-| DB root password | `secrets/db_root_password.txt` on VM |
-| WordPress admin | Created at install — password in secret or your notes |
+| DB user password | `secrets/db_password.txt` |
+| DB root password | `secrets/db_root_password.txt` |
+| WordPress admin password | `secrets/wp_admin_password.txt` |
+| Second WP user password | `srcs/.env` → `WORDPRESS_SECOND_PASSWORD` |
 
-**Security:** Do not share or commit password files.
+**Security:** Never commit or share these files. They are excluded from git.
 
 ---
 
@@ -62,18 +62,20 @@ make logs    # View logs if something fails
 
 ```bash
 make ps
-docker compose -f srcs/docker-compose.yml ps
 ```
 
 Expected: three containers (`nginx`, `wordpress`, `mariadb`) in state **running**.
 
 ### Quick health checks
 
-- Website loads over HTTPS
-- Can log in to wp-admin
-- After `make down` then `make up`, content and users still exist (persistence)
+```bash
+curl -k -I https://kebris-c.42.fr
+openssl s_client -connect kebris-c.42.fr:443 -tls1_2 </dev/null 2>/dev/null | head -5
+```
 
-<!-- TODO: Add curl/openssl examples if helpful -->
+- Website loads over HTTPS
+- You can log in to wp-admin
+- After `make down` then `make up`, posts and users still exist (persistence)
 
 ---
 
@@ -81,8 +83,9 @@ Expected: three containers (`nginx`, `wordpress`, `mariadb`) in state **running*
 
 | Problem | What to try |
 |---------|-------------|
-| Site unreachable | Check VM IP, `/etc/hosts`, firewall on 443 |
-| Certificate error | Expected with self-signed cert — proceed or install trusted cert |
-| White screen | Ask developer to check `make logs` |
+| Site unreachable | Check VM IP, `/etc/hosts`, firewall on port 443 |
+| Certificate error | Expected with self-signed cert — proceed in browser |
+| White screen / 502 | Run `make logs` and contact developer (see DEV_DOC.md) |
+| Forgot admin password | Read `secrets/wp_admin_password.txt` on the VM |
 
 For technical setup, see [DEV_DOC.md](DEV_DOC.md).

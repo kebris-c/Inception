@@ -4,81 +4,106 @@
 
 ## Description
 
-<!-- TODO: 2–3 paragraphs: goal of project, what the stack does, who it is for -->
+Inception is a system administration project from the 42 curriculum. The goal is to build a small, containerized web infrastructure on a Virtual Machine using Docker Compose.
 
-This project sets up a small containerized infrastructure using Docker Compose on a Virtual Machine. It runs WordPress behind an NGINX reverse proxy with TLS, backed by MariaDB.
-
-**Goal:** Learn system administration through Docker — custom images, networking, volumes, secrets, and process management.
+The stack runs WordPress (with PHP-FPM) behind an NGINX reverse proxy with TLS 1.2/1.3, backed by MariaDB. Each service lives in its own container, built from a custom Dockerfile on Debian bookworm-slim. Persistent data is stored in Docker named volumes mapped to `/home/kebris-c/data/` on the host.
 
 ## Instructions
 
 ### Prerequisites
 
-- Linux VM with Docker Engine and Docker Compose plugin
-- Directories: `/home/kebris-c/data/mariadb` and `/home/kebris-c/data/wordpress`
-- `/etc/hosts` entry: `<VM_IP> kebris-c.42.fr`
-- Local `secrets/*.txt` files (see `secrets/README.md`)
-- Copy `srcs/.env.example` → `srcs/.env` and edit
+- Linux VM with Docker Engine and Docker Compose v2
+- Host directories (created by `make setup`):
+  - `/home/kebris-c/data/mariadb`
+  - `/home/kebris-c/data/wordpress`
+- `/etc/hosts` entry pointing `kebris-c.42.fr` to your VM IP
+- Local secret files in `secrets/` (see `secrets/README.md`)
 
-### Build and run
+### Setup and run
 
 ```bash
-make        # build images
-make up     # start stack
-make down   # stop stack
-make logs   # view logs
+make setup    # create data dirs, .env, secrets (first time only)
+make          # build images
+make up       # start stack
+make ps       # check status
+make logs     # follow logs
+make down     # stop stack
+make re       # full rebuild (destructive — removes volumes)
 ```
 
-Access: `https://kebris-c.42.fr`
+Access the site at **https://kebris-c.42.fr** (accept the self-signed certificate warning).
 
 ## Project description
 
 ### Docker in this project
 
-<!-- TODO: Explain each component: Makefile, compose, 3 Dockerfiles, volumes, network -->
+| Component | Role |
+|-----------|------|
+| `Makefile` | Entry point: builds and manages the stack via Compose |
+| `srcs/docker-compose.yml` | Defines services, network, volumes, secrets |
+| `srcs/requirements/mariadb/` | Custom MariaDB image + init entrypoint |
+| `srcs/requirements/wordpress/` | WordPress + PHP-FPM + wp-cli entrypoint |
+| `srcs/requirements/nginx/` | TLS termination + FastCGI to PHP-FPM |
+| `secrets/` | Password files mounted as Docker secrets |
+| `srcs/.env` | Non-secret configuration (domain, usernames, DB name) |
 
-### Design choices
+**Design choices:**
 
-<!-- TODO: Alpine vs Debian, wp-cli vs manual install, nginx static vs pure fastcgi, etc. -->
+- **Debian bookworm-slim** as base for all three services (penultimate stable Debian).
+- **wp-cli** for automated WordPress install and user creation on first boot.
+- **NGINX shares the WordPress named volume** (read-only) so static files are served directly; PHP is forwarded via FastCGI to `wordpress:9000`.
+- **TLS certificate** generated at container start if not present (self-signed, CN = `DOMAIN_NAME`).
+- **MariaDB healthcheck** so WordPress waits until the database is ready.
 
 ### Virtual Machines vs Docker
 
 | Virtual Machines | Docker |
 |------------------|--------|
-| <!-- TODO --> | <!-- TODO --> |
+| Full guest OS with its own kernel view | Processes isolated via namespaces on the host kernel |
+| Heavy (GBs), slow to boot | Lightweight (MBs), starts in seconds |
+| Strong isolation, different OS possible | Same kernel; ideal for packaging apps consistently |
+| Used here as the **host** where Docker runs | Used to run NGINX, WordPress, MariaDB as separate services |
 
 ### Secrets vs Environment Variables
 
-| Secrets | Environment Variables |
-|---------|----------------------|
-| <!-- TODO --> | <!-- TODO --> |
+| Docker Secrets | Environment Variables (`.env`) |
+|----------------|----------------------------------|
+| Passwords in files under `secrets/`, mounted read-only at `/run/secrets/` | Domain name, DB name, usernames, URLs |
+| Never committed to git | Template in `.env.example`; real `.env` is gitignored |
+| Read by entrypoint scripts at runtime | Injected by Compose into containers |
+| Used for DB passwords and WP admin password | Used for non-sensitive configuration |
 
 ### Docker Network vs Host Network
 
-| Docker Network | Host Network |
-|----------------|--------------|
-| <!-- TODO --> | <!-- TODO --> |
+| Docker Network (`inception`) | Host Network |
+|------------------------------|--------------|
+| Containers talk via DNS names (`mariadb`, `wordpress`) | Container shares host network stack directly |
+| Only port 443 published to the host (nginx) | Would expose all container ports on the host |
+| Isolated, subject-compliant | Forbidden by the subject (`network: host`) |
 
 ### Docker Volumes vs Bind Mounts
 
-| Docker Volumes | Bind Mounts |
-|----------------|-------------|
-| <!-- TODO --> | <!-- TODO --> |
+| Named Volumes (this project) | Bind Mounts |
+|------------------------------|-------------|
+| Declared in compose `volumes:` section with a logical name | Maps a host path directly in the service `volumes:` entry |
+| Data stored under `/home/kebris-c/data/` via `driver_opts.device` | Subject forbids bind mounts for DB and WordPress data |
+| Survive `docker compose down`; removed only with `-v` | Same persistence model but not allowed for mandatory volumes |
+| Shared between wordpress and nginx (read-only on nginx) | — |
 
 ## Resources
 
-- [Docker Documentation](https://docs.docker.com/)
-- [Docker Compose](https://docs.docker.com/compose/)
-- [NGINX HTTPS](https://nginx.org/en/docs/http/configuring_https_servers.html)
-- [WordPress wp-cli](https://developer.wordpress.org/cli/commands/)
-- [MariaDB KB](https://mariadb.com/kb/en/documentation/)
+1. 42 Inception subject (v5.3) — official project requirements from the 42 intranet.
+2. [Docker Documentation](https://docs.docker.com/) — containers, images, volumes, secrets.
+3. [Docker Compose file reference](https://docs.docker.com/compose/compose-file/) — services, networks, healthchecks.
+4. [NGINX HTTPS configuration](https://nginx.org/en/docs/http/configuring_https_servers.html) — TLS and reverse proxy setup.
 
 ### Use of AI
 
-<!-- TODO: Describe which tasks AI helped with and how you verified the output -->
+AI tools were used as a **learning aid**, not as a substitute for implementation. They provided general guidelines, architectural suggestions, explanations of Docker/NGINX/PHP-FPM concepts, and starter templates for Dockerfiles, entrypoints, and documentation structure. All code was reviewed, adapted, and is being reimplemented and tested manually to ensure full understanding before evaluation.
+
+Peer discussions and the official subject document were the primary references for compliance decisions.
 
 ## See also
 
-- [INCEPTION_GUIDE.md](INCEPTION_GUIDE.md) — full teaching guide
 - [USER_DOC.md](USER_DOC.md) — operator documentation
-- [DEV_DOC.md](DEV_DOC.md) — developer setup
+- [DEV_DOC.md](DEV_DOC.md) — developer setup from scratch

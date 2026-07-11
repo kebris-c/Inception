@@ -1,16 +1,9 @@
-# =============================================================================
-# MariaDB — Custom server configuration
-# =============================================================================
-# PURPOSE: Optional tuning (charset, bind-address, logging).
-#
-# NOTE: bind-address = 0.0.0.0 allows connections from wordpress container
-#       on the Docker network. Do NOT expose port 3306 on the host.
-#
-# TODO: Create custom.cnf with [mysqld] section
-# Example keys: character-set-server, collation-server, bind-address
-# =============================================================================
+[mysqld]
+bind-address = 0.0.0.0
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+skip-host-cache
+skip-name-resolve
 
-# [mysqld]
-# bind-address = 0.0.0.0
-# character-set-server = utf8mb4
-# collation-server = utf8mb4_unicode_ci
+[client]
+default-character-set = utf8mb4

@@ -2,30 +2,36 @@
 # Inception — Git ignore
 # =============================================================================
 # CRITICAL: Committing passwords = automatic project failure.
+# Only files required by the 42 subject should be tracked.
 # =============================================================================
 
-# Environment with real values (use .env.example as template)
+# --- Local study / subject files (not for 42 submission) ---
+INCEPTION_GUIDE.md
+SUBJECT.md
+en.subject.pdf
+
+# --- Environment (create from .env.example on VM) ---
 srcs/.env
 
-# All secrets — create locally on VM only
+# --- Secrets (create locally on VM only) ---
 secrets/*.txt
 secrets/*
 !secrets/.gitkeep
 !secrets/README.md
 
-# TLS private keys (generate on VM or at build time)
+# --- TLS private keys ---
 **/ssl/*.key
 **/ssl/*.pem
 
-# WordPress / PHP
+# --- WordPress runtime ---
 **/wp-config.php
 
-# OS / editor
+# --- OS / editor ---
 .DS_Store
 *.swp
 *~
 .idea/
 .vscode/
 
-# Docker local overrides
+# --- Docker local overrides ---
 docker-compose.override.yml
